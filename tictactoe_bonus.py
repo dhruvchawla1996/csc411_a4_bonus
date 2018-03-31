@@ -124,6 +124,21 @@ class Environment(object):
         else:
             return self.play_against_random_second(action)
 
+    def play_against_itself(self, policy, action):
+        """Play a move, and then play a move."""
+        state, status, done = self.step(action)
+        if not done and self.turn == 2:
+            action, logprob = select_action(policy, state)
+            state, s2, done = self.step(action)
+            if done:
+                if s2 == self.STATUS_WIN:
+                    status = self.STATUS_LOSE
+                elif s2 == self.STATUS_TIE:
+                    status = self.STATUS_TIE
+                else:
+                    raise ValueError("???")
+        return state, status, done
+
 class Policy(nn.Module):
     """
     The Tic-Tac-Toe Policy
@@ -203,7 +218,7 @@ def choose_random_move():
     """Flip a fair coin and return 'first' or 'second'"""
     return ("first" if random.random() < 0.5 else "second")
 
-def train(policy, env, gamma=0.75, log_interval=1000):
+def train_against_random(policy, env, gamma=0.75, log_interval=1000):
     """Train policy gradient."""
     optimizer = optim.Adam(policy.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.StepLR(
@@ -268,6 +283,70 @@ def train(policy, env, gamma=0.75, log_interval=1000):
 
             return
 
+def train_against_itself(policy, env, gamma=0.75, log_interval=1000):
+    """Train policy gradient."""
+    optimizer = optim.Adam(policy.parameters(), lr=0.001)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=10000, gamma=0.9)
+    running_reward = 0
+
+    episode_axis = []
+    return_axis = []
+
+    for i_episode in count(1):
+        saved_rewards = []
+        saved_logprobs = []
+        state = env.reset()
+        done = False
+        while not done:
+            action, logprob = select_action(policy, state)
+            state, status, done = env.play_against_itself(policy, action)
+            reward = get_reward(status)
+            saved_logprobs.append(logprob)
+            saved_rewards.append(reward)
+
+        R = compute_returns(saved_rewards)[0]
+        running_reward += R
+
+        finish_episode(saved_rewards, saved_logprobs, gamma)
+
+        if i_episode % log_interval == 0:
+            episode_axis.extend([i_episode])
+            return_axis.extend([running_reward/log_interval])
+            games_won_first, games_lost_first, games_tied_first, invalid_moves_first = play_games_against_random(policy, env, "first")
+            games_won_second, games_lost_second, games_tied_second, invalid_moves_second = play_games_against_random(policy, env, "second")
+            print('Episode {}\tAverage return: {:.2f}\nFirst move:\tGames Won: {}\tGames Lost:{}\tGames Tied:{}\tInvalid Moves:{}\nSecond move:\tGames Won: {}\tGames Lost:{}\tGames Tied:{}\tInvalid Moves:{}'.format(
+                i_episode,
+                running_reward / log_interval,
+                games_won_first, 
+                games_lost_first,
+                games_tied_first,
+                invalid_moves_first, 
+                games_won_second, 
+                games_lost_second, 
+                games_tied_second, 
+                invalid_moves_second))
+            running_reward = 0
+
+        if i_episode % (log_interval) == 0:
+            torch.save(policy.state_dict(),
+                       "ttt/policy-%d.pkl" % i_episode)
+
+        if i_episode % 1 == 0: # batch_size
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+
+        if i_episode == 50000:
+            fig = plt.figure()
+            plt.plot(episode_axis, return_axis)
+            plt.xlabel("episode #")
+            plt.ylabel("average return")
+            plt.title("Training curve of Tic-Tac-Toe model")
+            plt.savefig("figures/part5b_256_.png")
+
+            return
+
 def first_move_distr(policy, env):
     """Display the distribution of first moves."""
     state = env.reset()
@@ -310,11 +389,11 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         # `python tictactoe.py` to train the agent
-        train(policy, env)
+        train_against_random(policy, env)
     else:
         # `python tictactoe.py <ep>` to print the first move distribution
         # using weightt checkpoint at episode int(<ep>)
         ep = int(sys.argv[1])
         load_weights(policy, ep)
-        # print(first_move_distr(policy, env))
-        print(play_games_against_random(policy, env))
+        
+        train_against_itself(policy, env)
