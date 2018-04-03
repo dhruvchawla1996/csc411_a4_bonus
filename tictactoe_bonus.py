@@ -17,6 +17,8 @@ np.random.seed(42)
 random.seed(42)
 torch.manual_seed(42)
 
+plt.switch_backend('agg')
+
 class Environment(object):
     """
     The Tic-Tac-Toe Environment
