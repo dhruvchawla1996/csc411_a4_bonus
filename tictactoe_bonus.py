@@ -460,6 +460,27 @@ def play_games_against_random(policy, env, move="first", games = 100):
 
     return games_won, games_lost, games_tied, invalid_moves
 
+def play_games_against_itself(policy, env, games = 100):
+    """Play games against itself and return number of games won, lost or tied"""
+    games_won, games_lost, games_tied, invalid_moves = 0, 0, 0, 0
+
+    for i in range(games):
+        state = env.reset()
+        done = False
+        print("Game: %s"%i)
+
+        while not done:
+            action, logprob = select_action(policy, state)
+            state, status, done = env.play_against_itself(policy, action)
+            invalid_moves += (1 if status == env.STATUS_INVALID_MOVE else 0)
+            env.render()
+
+        if status == env.STATUS_WIN: games_won += 1
+        elif status == env.STATUS_LOSE: games_lost += 1
+        else: games_tied += 1
+
+    return games_won, games_lost, games_tied, invalid_moves
+
 if __name__ == '__main__':
     import sys
     policy = Policy()
@@ -474,6 +495,7 @@ if __name__ == '__main__':
         ep = int(sys.argv[1])
         load_weights(policy, ep)
         
-        train_against_itself(policy, env)
-        #play_games_against_random(policy, env, "first", 2)
-        #play_games_against_random(policy, env, "second", 3)
+        #train_against_itself(policy, env)
+        play_games_against_random(policy, env, "first", 2)
+        play_games_against_random(policy, env, "second", 3)
+        play_games_against_itself(policy, env, 5)
