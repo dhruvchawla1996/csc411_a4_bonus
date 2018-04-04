@@ -333,6 +333,14 @@ def train_against_itself(policy, env, gamma=0.75, log_interval=1000):
     episode_axis = []
     return_axis = []
 
+    win_rate_per_episode_first = []
+    loss_rate_per_episode_first = []
+    tie_rate_per_episode_first = []
+
+    win_rate_per_episode_second = []
+    loss_rate_per_episode_second = []
+    tie_rate_per_episode_second = []
+
     for i_episode in count(1):
         saved_rewards = []
         saved_logprobs = []
@@ -353,8 +361,18 @@ def train_against_itself(policy, env, gamma=0.75, log_interval=1000):
         if i_episode % log_interval == 0:
             episode_axis.extend([i_episode])
             return_axis.extend([running_reward/log_interval])
+
             games_won_first, games_lost_first, games_tied_first, invalid_moves_first = play_games_against_random(policy, env, "first")
             games_won_second, games_lost_second, games_tied_second, invalid_moves_second = play_games_against_random(policy, env, "second")
+
+            win_rate_per_episode_first.extend([games_won_first/100.0])
+            loss_rate_per_episode_first.extend([games_lost_first/100.0])
+            tie_rate_per_episode_first.extend([games_tied_first/100.0])
+
+            win_rate_per_episode_second.extend([games_won_second/100.0])
+            loss_rate_per_episode_second.extend([games_lost_second/100.0])
+            tie_rate_per_episode_second.extend([games_tied_second/100.0])
+            
             print('Episode {}\tAverage return: {:.2f}\nFirst move:\tGames Won: {}\tGames Lost:{}\tGames Tied:{}\tInvalid Moves:{}\nSecond move:\tGames Won: {}\tGames Lost:{}\tGames Tied:{}\tInvalid Moves:{}'.format(
                 i_episode,
                 running_reward / log_interval,
@@ -378,12 +396,32 @@ def train_against_itself(policy, env, gamma=0.75, log_interval=1000):
             optimizer.zero_grad()
 
         if i_episode == 50000:
-            fig = plt.figure()
+            plt.figure()
             plt.plot(episode_axis, return_axis)
             plt.xlabel("episode #")
             plt.ylabel("average return")
             plt.title("Training curve of Tic-Tac-Toe model")
-            plt.savefig("figures/part5b_256_.png")
+            plt.savefig("figures/part2_returns.png")
+
+            plt.figure()
+            plt.plot(episode_axis, win_rate_per_episode_first , label = "win rate")
+            plt.plot(episode_axis, loss_rate_per_episode_first, label = "loss rate")
+            plt.plot(episode_axis, tie_rate_per_episode_first, label = "tie rate")
+            plt.xlabel("episode #")
+            plt.ylabel("win/loss/tie rates")
+            plt.title("Evolution of Win/Loss/Tie rates with training - going first")
+            plt.legend()
+            plt.savefig("figures/part2_wlt_first.png")
+
+            plt.figure()
+            plt.plot(episode_axis, win_rate_per_episode_second , label = "win rate")
+            plt.plot(episode_axis, loss_rate_per_episode_second, label = "loss rate")
+            plt.plot(episode_axis, tie_rate_per_episode_second, label = "tie rate")
+            plt.xlabel("episode #")
+            plt.ylabel("win/loss/tie rates")
+            plt.title("Evolution of Win/Loss/Tie rates with training - going second")
+            plt.legend()
+            plt.savefig("figures/part2_wlt_second.png")
 
             return
 
@@ -436,6 +474,6 @@ if __name__ == '__main__':
         ep = int(sys.argv[1])
         load_weights(policy, ep)
         
-        #train_against_itself(policy, env)
-        play_games_against_random(policy, env, "first", 2)
-        play_games_against_random(policy, env, "second", 3)
+        train_against_itself(policy, env)
+        #play_games_against_random(policy, env, "first", 2)
+        #play_games_against_random(policy, env, "second", 3)
