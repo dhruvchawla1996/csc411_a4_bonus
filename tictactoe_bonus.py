@@ -408,13 +408,13 @@ def play_games_against_random(policy, env, move="first", games = 100):
     for i in range(games):
         state = env.reset()
         done = False
-        # print(i)
+        print("Game: %s"%i)
 
         while not done:
             action, logprob = select_action(policy, state)
             state, status, done = env.play_against_random(action, move)
             invalid_moves += (1 if status == env.STATUS_INVALID_MOVE else 0)
-            # env.render()
+            env.render()
 
         if status == env.STATUS_WIN: games_won += 1
         elif status == env.STATUS_LOSE: games_lost += 1
@@ -436,4 +436,6 @@ if __name__ == '__main__':
         ep = int(sys.argv[1])
         load_weights(policy, ep)
         
-        train_against_itself(policy, env)
+        #train_against_itself(policy, env)
+        play_games_against_random(policy, env, "first", 2)
+        play_games_against_random(policy, env, "second", 3)
